@@ -1,0 +1,84 @@
+services:
+  zookeeper:
+    image: docker.io/bitnami/zookeeper:3.9
+    networks:
+      dataengineering:
+        ipv4_address: 172.34.0.18
+    ports:
+      - "2181:2181"
+    volumes:
+      - "zookeeper_data:/bitnami"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  kafka:
+    image: docker.io/bitnami/kafka:3.4
+    networks:
+      dataengineering:
+        ipv4_address: 172.34.0.19
+    ports:
+      - "9092:9092"
+    volumes:
+      - "kafka_data:/bitnami"
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://172.34.0.19:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+    depends_on: 
+      - zookeeper
+  # Our producer to emulate real time traffic
+  producer:
+    build: ./producer
+    networks:
+      dataengineering:
+        ipv4_address: 172.34.0.21
+    depends_on:
+      - kafka
+  # Consumer connects to kafka and subscribes to data engineering topic
+  consumer-container:
+    build: ./consumer-container
+    networks:
+      dataengineering:
+        ipv4_address: 172.34.0.15
+    depends_on:
+      - kafka
+  
+  # We store data from Apache kafka to Mongo DB for further processing
+  mongo:
+    image: 'mongo:latest'
+    container_name: mongo
+    networks:
+      dataengineering:
+        ipv4_address: 172.34.0.22
+    volumes:
+      - mongo-data:/data/farmers
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=bahati
+      - MONGO_INITDB_ROOT_PASSWORD=bahati
+      - MONGO_INITDB_DATABASE=farmers
+  # We use spark connect to retrieve data from Mongo DB and connnect to spark to process the data
+  consumer-spark:
+    build: ./consumer-spark
+    networks:
+      dataengineering:
+        ipv4_address: 172.34.0.55
+    depends_on:
+      - mongo
+volumes:
+  zookeeper_data:
+    driver: local
+  kafka_data:
+    driver: local
+  mongo-data:
+  hadoop-data:
+
+networks:
+  dataengineering:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.34.0.0/16

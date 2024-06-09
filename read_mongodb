@@ -1,0 +1,22 @@
+from pymongo import MongoClient
+from pymongo.errors import OperationFailure
+connection_string = 'mongodb://bahati2:bahati2@localhost:27017/farmers'
+client = MongoClient(connection_string)
+db = client['farmers']
+collection = db['mycollection']
+try:
+
+    # Read data from MongoDB collection
+    data = collection.find()
+
+    # Display the data
+    for document in data:
+        print(document)
+
+    # Close the connection
+    client.close()
+
+except OperationFailure as e:
+    print(f"Authentication failed: {e}")
+except Exception as e:
+    print(f"An error occurred: {e}")

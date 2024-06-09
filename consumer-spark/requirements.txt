@@ -1,0 +1,8 @@
+pymongo  
+pyspark
+kafka-python
+pandas
+PyArrow
+grpcio
+protobuf
+grpcio-status
